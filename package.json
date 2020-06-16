@@ -1,0 +1,6 @@
+{
+  "dependencies": {
+    "local-echo": "wavesoft/local-echo",
+    "xterm": "^4.7.0"
+  }
+}
