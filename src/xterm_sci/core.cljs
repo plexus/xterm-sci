@@ -18,7 +18,11 @@
 (def unconsumed-input (atom ""))
 (def env (atom {}))
 (def ctx (sci/init {:env env
+                    :realize-max 1000
+                    :profile :termination-safe
                     :classes {'js js/window}}))
+
+;; (let [e* (sci/new-var ...), ctx (sci/init {:namespaces .... {'e* e*})] .... (sci/alter-var-root *e ...))
 
 (defn read-form [s]
   (try
@@ -40,7 +44,12 @@
       (let [form (read-form @unconsumed-input)]
         (if (= ::eof form)
           (when-not (= ::none ret)
-            (.write term (str (pr-str ret) "\r\n" )))
+            (binding [*print-length* 20]
+              (let [printed (try
+                              (pr-str ret)
+                              (catch :default e
+                                (str "Error while printing: " (pr-str e))))]
+                (.write term (str printed "\r\n" )))))
           (let [[expr remainder] form
                 ret (try
                       (sci-impl/eval-form ctx expr)
