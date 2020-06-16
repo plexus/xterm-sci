@@ -1,6 +1,6 @@
 {
   "dependencies": {
-    "local-echo": "wavesoft/local-echo",
+    "local-echo": "janstuemmel/local-echo#fix-xtermjs4",
     "xterm": "^4.7.0"
   }
 }
