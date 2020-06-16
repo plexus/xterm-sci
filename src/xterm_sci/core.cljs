@@ -10,13 +10,6 @@
             [sci.impl.utils :as utils]
             [goog.crypt :as c]))
 
-
-
-
-
-(defn string->byte-seq [s]
-  (c/stringToUtf8ByteArray s))
-
 (defonce term (doto (xterm/Terminal.)
                 (.open (js/document.getElementById "app"))))
 
@@ -58,26 +51,6 @@
                         ::none))]
             (reset! unconsumed-input remainder)
             (recur ret)))))))
-
-(get-in @env '[:namespaces user])
-;; (defonce handler
-;;   (.onData term (fn [data]
-;;                   (prn (string->byte-seq data))
-;;                   (if (= (char 127) data)
-;;                     (swap! unconsumed-input
-;;                            (fn [input]
-;;                              (let [lines (str/split input #"\r")]
-;;                                (if (seq (last lines))
-;;                                  (do
-;;                                    (.write term "\u001b[1D \u001b[1D")
-;;                                    (subs input 0 (dec (count input))))
-;;                                  input))))
-;;                     (do
-;;                       (swap! unconsumed-input + data)
-;;                       (.write term data)
-;;                       (when (str/includes? data "\r")
-;;                         (.write term "\r\n")
-;;                         (try-eval!)))))))
 
 (defn input-loop []
   (.then (.read line-discipline (str @vars/current-ns "=> "))
