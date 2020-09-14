@@ -4,6 +4,13 @@
 [![CircleCI](https://circleci.com/gh/lambdaisland/{project}.svg?style=svg)](https://circleci.com/gh/lambdaisland/{project}) [![cljdoc badge](https://cljdoc.org/badge/lambdaisland/{project})](https://cljdoc.org/d/lambdaisland/{project}) [![Clojars Project](https://img.shields.io/clojars/v/lambdaisland/{project}.svg)](https://clojars.org/lambdaisland/{project})
 <!-- /badges -->
 
+## Dev
+
+```
+$ npm install
+$ clojure -A:dev -m shadow.cljs.devtools.cli watch main
+```
+
 ## License
 
 Copyright &copy; 2020 Arne Brasseur and Contributors
