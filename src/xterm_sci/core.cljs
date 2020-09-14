@@ -2,6 +2,7 @@
   (:require ["local-echo" :as local-echo :default local-echo-controller]
             ["xterm" :as xterm]
             [clojure.string :as str]
+            [goog.string]
             [sci.core :as sci]))
 
 (defonce term (doto (xterm/Terminal.)
@@ -55,7 +56,8 @@
 
 (defn eval! []
   (sci/with-bindings {sci/ns @last-ns
-                      last-error @last-error}
+                      last-error @last-error
+                      sci/out (goog.string/StringBuffer.)}
     (loop []
       (let [reader (sci/reader @unconsumed-input)
             form (read-form reader)]
@@ -66,7 +68,12 @@
                           (sci/eval-form ctx form)
                           (catch :default e
                             (handle-error last-error e)
-                            ::err))]
+                            ::err)
+                          (finally
+                            (let [output (str @sci/out)]
+                              (when-not (str/blank? output)
+                                (.write term
+                                        (str/replace output #"\n$" "\r\n"))))))]
                 (when-not (= ::err ret) ;; do nothing, continue in input-loop
                   (print-val ret)
                   (reset! last-ns @sci/ns)
