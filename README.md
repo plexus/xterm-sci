@@ -4,6 +4,9 @@
 [![CircleCI](https://circleci.com/gh/lambdaisland/{project}.svg?style=svg)](https://circleci.com/gh/lambdaisland/{project}) [![cljdoc badge](https://cljdoc.org/badge/lambdaisland/{project})](https://cljdoc.org/d/lambdaisland/{project}) [![Clojars Project](https://img.shields.io/clojars/v/lambdaisland/{project}.svg)](https://clojars.org/lambdaisland/{project})
 <!-- /badges -->
 
+[Sci](https://github.com/borkdude/sci) meets [Xterm.js](https://github.com/xtermjs/xterm.js/).
+Hosted [here](https://babashka.org/xterm-sci/).
+
 ## Dev
 
 ```
