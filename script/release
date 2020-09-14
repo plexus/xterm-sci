@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+
+clojure -A:dev -m shadow.cljs.devtools.cli release main
+cp -R resources/public/* gh-pages
+rm -rf gh-pages/ui/cljs-runtime
+rm -rf gh-pages/ui/manifest.edn
