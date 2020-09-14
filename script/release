@@ -1,6 +1,13 @@
 #!/usr/bin/env bash
 
 clojure -A:dev -m shadow.cljs.devtools.cli release main
-cp -R resources/public/* gh-pages
-rm -rf gh-pages/ui/cljs-runtime
-rm -rf gh-pages/ui/manifest.edn
+cp resources/public/index.html gh-pages
+cp resources/public/xterm.css gh-pages
+
+mkdir -p gh-pages/ui
+cp resources/public/ui/main.js gh-pages/ui/main.js
+
+cd gh-pages
+git add .
+git commit -m "update build"
+git push

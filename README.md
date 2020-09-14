@@ -49,10 +49,6 @@ To deploy to Github Pages:
 
 ```
 script/release
-cd gh-pages
-git add .
-git commit -m "update build"
-git push
 ```
 
 ## License
