@@ -11,6 +11,8 @@ $ npm install
 $ clojure -A:dev -m shadow.cljs.devtools.cli watch main
 ```
 
+<img src="xterm-sci.png"/>
+
 ## License
 
 Copyright &copy; 2020 Arne Brasseur and Contributors
