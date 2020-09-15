@@ -1,72 +1,97 @@
 (ns xterm-sci.core
-  (:require ["xterm" :as xterm]
-            ["local-echo" :as local-echo :default local-echo-controller]
-            [clojure.tools.reader.reader-types :as r]
+  (:require ["local-echo" :as local-echo :default local-echo-controller]
+            ["xterm" :as xterm]
             [clojure.string :as str]
-            [sci.core :as sci]
-            [sci.impl.interpreter :as sci-impl]
-            [sci.impl.vars :as vars]
-            [sci.impl.parser :as p]
-            [sci.impl.utils :as utils]
-            [goog.crypt :as c]))
+            [goog.string]
+            [sci.core :as sci]))
 
 (defonce term (doto (xterm/Terminal.)
                 (.open (js/document.getElementById "app"))))
-
 (defonce line-discipline (local-echo-controller. term))
-
-(def unconsumed-input (atom ""))
-(def env (atom {}))
-(def ctx (sci/init {:env env
-                    :realize-max 1000
-                    :profile :termination-safe
-                    :classes {'js js/window}}))
+(defonce unconsumed-input (atom ""))
+(defonce await-more-input (atom false))
+(defonce last-ns (atom @sci/ns))
+(defonce last-error (sci/new-dynamic-var '*e nil))
+(defonce ctx (sci/init {:realize-max 1000
+                        :profile :termination-safe
+                        :classes {'js js/window}
+                        :namespaces {'clojure.core {'*e last-error}}}))
 
 ;; (let [e* (sci/new-var ...), ctx (sci/init {:namespaces .... {'e* e*})] .... (sci/alter-var-root *e ...))
 
-(defn read-form [s]
-  (try
-    (let [string-reader (r/string-reader s)
-          buf-len 1
-          pushback-reader (r/PushbackReader. string-reader (object-array buf-len) buf-len buf-len)
-          reader (r/indexing-push-back-reader pushback-reader)
-          res (p/parse-next ctx reader)]
-      (if (= :edamame.impl.parser/eof res)
-        ::eof
-        [res (subs s (.-s-pos string-reader))]))
-    (catch :default e
-      (when (str/includes? (.-message e) "EOF while reading")
-        ::eof))))
+(defn chop [s line col]
+  (subs (str/join (drop (dec line) (str/split-lines s))) col))
 
-(defn try-eval! []
-  (vars/with-bindings {vars/current-ns @vars/current-ns}
-    (loop [ret ::none]
-      (let [form (read-form @unconsumed-input)]
-        (if (= ::eof form)
-          (when-not (= ::none ret)
-            (binding [*print-length* 20]
-              (let [printed (try
-                              (pr-str ret)
-                              (catch :default e
-                                (str "Error while printing: " (pr-str e))))]
-                (.write term (str printed "\r\n" )))))
-          (let [[expr remainder] form
-                ret (try
-                      (sci-impl/eval-form ctx expr)
-                      (catch :default e
-                        (swap! env assoc-in [:namespaces (vars/current-ns-name) '*e] (vars/SciVar. e '*e {}))
-                        (.write term (pr-str e))
-                        (.write term "\r\n")
-                        ::none))]
-            (reset! unconsumed-input remainder)
-            (recur ret)))))))
+(defn skip-handled-input [reader]
+  (swap! unconsumed-input chop
+         (sci/get-line-number reader)
+         (sci/get-column-number reader)))
+
+(defn handle-error [last-error e]
+  (sci/alter-var-root last-error (constantly e))
+  (.write term (ex-message e))
+  (.write term "\r\n"))
+
+(defn read-form [reader]
+  (try
+    (let [form (sci/parse-next ctx reader)]
+      (skip-handled-input reader)
+      form)
+    (catch :default e
+      (if (str/includes? (.-message e) "EOF while reading")
+        ::eof-while-reading
+        (do
+          (handle-error last-error e)
+          (skip-handled-input reader)
+          ;;we're done handling this input
+          ::sci/eof)))))
+
+(defn print-val [v]
+  (binding [*print-length* 20]
+    (let [printed (try
+                    (pr-str v)
+                    (catch :default e
+                      (str "Error while printing: " (pr-str e))))]
+      (.write term (str printed "\r\n")))))
+
+(defn eval! []
+  (sci/with-bindings {sci/ns @last-ns
+                      last-error @last-error
+                      sci/out (goog.string/StringBuffer.)}
+    (loop []
+      (let [reader (sci/reader @unconsumed-input)
+            form (read-form reader)]
+        (cond (= ::sci/eof form) (reset! await-more-input false)
+              (= ::eof-while-reading form) (reset! await-more-input true)
+              :else
+              (let [ret (try
+                          (sci/eval-form ctx form)
+                          (catch :default e
+                            (handle-error last-error e)
+                            ::err)
+                          (finally
+                            (let [output (str @sci/out)]
+                              (when-not (str/blank? output)
+                                (.write term
+                                        (str/replace output #"\n$" "\r\n"))))))]
+                (when-not (= ::err ret) ;; do nothing, continue in input-loop
+                  (print-val ret)
+                  (reset! last-ns @sci/ns)
+                  (recur))))))))
+
+(defn prompt []
+  (if @await-more-input "> "
+      (str @last-ns "=> ")))
 
 (defn input-loop []
-  (.then (.read line-discipline (str @vars/current-ns "=> "))
+  (.then (.read line-discipline (prompt))
          (fn [line]
-           (swap! unconsumed-input + line)
-           (try-eval!)
+           (swap! unconsumed-input (fn [input]
+                                     (if-not (str/blank? input)
+                                       (str input " " line)
+                                       line)))
+           (eval!)
            (input-loop))))
 
-(defonce i
+(defonce i ;; don't start another input loop on hot-reload
   (input-loop))
